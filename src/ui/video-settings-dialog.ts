@@ -350,6 +350,15 @@ class VideoSettingsDialog extends Container {
         showDebugRow.append(showDebugLabel);
         showDebugRow.append(showDebugBoolean);
 
+        // export per-frame camera intrinsics and extrinsics
+
+        const exportCamerasLabel = new Label({ class: 'label' });
+        i18n.bindText(exportCamerasLabel, 'popup.render-video.export-cameras');
+        const exportCamerasBoolean = new BooleanInput({ class: 'boolean', value: false });
+        const exportCamerasRow = new Container({ class: 'row' });
+        exportCamerasRow.append(exportCamerasLabel);
+        exportCamerasRow.append(exportCamerasBoolean);
+
         // sync the ui to the selected projection: 360 renders are 2:1
         // equirectangular without portrait mode or debug overlays
         const syncProjection = () => {
@@ -375,6 +384,7 @@ class VideoSettingsDialog extends Container {
         content.append(levelHorizonRow);
         content.append(transparentBgRow);
         content.append(showDebugRow);
+        content.append(exportCamerasRow);
 
         const compatibilityMessage = new Label({
             class: 'video-compatibility-message',
@@ -701,6 +711,7 @@ class VideoSettingsDialog extends Container {
                         ...encodingSettings,
                         transparentBg: transparentBgBoolean.value,
                         showDebug: !is360 && showDebugBoolean.value,
+                        exportCameras: exportCamerasBoolean.value,
                         format: formatSelect.value as 'mp4' | 'webm' | 'mov' | 'mkv',
                         projection: (is360 ? 'equirect' : 'standard') as 'standard' | 'equirect',
                         levelHorizon: is360 && levelHorizonBoolean.value

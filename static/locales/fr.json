@@ -190,6 +190,7 @@
     "popup.render-video.level-horizon": "Niveler l'horizon",
     "popup.render-video.transparent-background": "Fond transparent",
     "popup.render-video.show-debug-overlays": "Afficher les superpositions de débogage",
+    "popup.render-video.export-cameras": "Exporter les paramètres de caméra",
     "popup.shortcuts.title": "Raccourcis Claviers",
     "popup.shortcuts.navigation": "Navigation",
     "popup.shortcuts.reset-camera": "Réinitialiser la caméra",

@@ -9,6 +9,7 @@ type VideoSettings = {
     bitrate: number;
     transparentBg: boolean;
     showDebug: boolean;
+    exportCameras: boolean;
     format: 'mp4' | 'webm' | 'mov' | 'mkv';
     codec: VideoCodecChoice;
     projection?: 'standard' | 'equirect';

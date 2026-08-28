@@ -190,6 +190,7 @@
     "popup.render-video.level-horizon": "保持地平线水平",
     "popup.render-video.transparent-background": "透明背景",
     "popup.render-video.show-debug-overlays": "显示调试覆盖",
+    "popup.render-video.export-cameras": "导出相机参数",
     "popup.shortcuts.title": "键盘快捷键",
     "popup.shortcuts.navigation": "导航",
     "popup.shortcuts.reset-camera": "重置相机",

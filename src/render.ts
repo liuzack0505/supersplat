@@ -1,6 +1,6 @@
 import { WebPCodec } from '@playcanvas/splat-transform';
 import { BufferTarget, EncodedPacket, EncodedVideoPacketSource, MkvOutputFormat, MovOutputFormat, Mp4OutputFormat, Output, StreamTarget, WebMOutputFormat } from 'mediabunny';
-import { Color, path, Quat, Vec3 } from 'playcanvas';
+import { Color, Mat4, path, Quat, Vec3 } from 'playcanvas';
 
 import { ElementType } from './element';
 import { EquirectRenderer } from './equirect-renderer';
@@ -75,6 +75,74 @@ const downloadFile = (data: ArrayBuffer | Uint8Array<ArrayBuffer>, filename: str
     el.href = url;
     el.click();
     window.URL.revokeObjectURL(url);
+};
+
+type RenderCamera = {
+    id: number;
+    img_name: string;
+    timestamp: number;
+    source_frame: number;
+    width: number;
+    height: number;
+    projection: 'perspective' | 'orthographic' | 'equirectangular';
+    position: number[];
+    rotation: number[][];
+    fx: number | null;
+    fy: number | null;
+    cx: number;
+    cy: number;
+    fov: number | null;
+    ortho_height?: number;
+};
+
+// Serialize the camera-to-world transform and pixel-space intrinsics used by
+// a rendered frame. Matrix values are emitted as rows for easy consumption.
+const serializeRenderCamera = (
+    scene: Scene,
+    settings: VideoSettings,
+    id: number,
+    timestamp: number,
+    sourceFrame: number,
+    position?: Vec3,
+    rotation?: Quat
+): RenderCamera => {
+    const camera = scene.camera;
+    const transform = position && rotation ?
+        new Mat4().setTRS(position, rotation, Vec3.ONE) :
+        camera.mainCamera.getWorldTransform();
+    const m = transform.data;
+    const projection = settings.projection === 'equirect' ? 'equirectangular' : camera.ortho ? 'orthographic' : 'perspective';
+
+    let fx: number | null = null;
+    let fy: number | null = null;
+    if (projection === 'perspective') {
+        const focal = 0.5 * (camera.camera.horizontalFov ? settings.width : settings.height) /
+            Math.tan(0.5 * camera.fov * Math.PI / 180);
+        fx = focal;
+        fy = focal;
+    }
+
+    return {
+        id,
+        img_name: id.toString().padStart(6, '0'),
+        timestamp,
+        source_frame: sourceFrame,
+        width: settings.width,
+        height: settings.height,
+        projection,
+        position: [m[12], m[13], m[14]],
+        rotation: [
+            [m[0], m[4], m[8]],
+            [m[1], m[5], m[9]],
+            [m[2], m[6], m[10]]
+        ],
+        fx,
+        fy,
+        cx: settings.width * 0.5,
+        cy: settings.height * 0.5,
+        fov: projection === 'perspective' ? camera.fov : null,
+        ...(projection === 'orthographic' ? { ortho_height: camera.camera.orthoHeight } : {})
+    };
 };
 
 const registerRenderEvents = (scene: Scene, events: Events) => {
@@ -347,7 +415,7 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
             let muxerWrites = Promise.resolve();
 
             try {
-                const { startFrame, endFrame, frameRate, width, height, bitrate, transparentBg, showDebug, format, codec: codecChoice, projection, levelHorizon } = videoSettings;
+                const { startFrame, endFrame, frameRate, width, height, bitrate, transparentBg, showDebug, exportCameras, format, codec: codecChoice, projection, levelHorizon } = videoSettings;
 
                 const is360 = projection === 'equirect';
 
@@ -551,6 +619,7 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
                 const animFrameRate = events.invoke('timeline.frameRate');
                 const duration = (endFrame - startFrame) / animFrameRate;
                 const totalFrames = Math.floor(duration * frameRate) + 1;
+                const renderCameras: RenderCamera[] = [];
 
                 // work objects for 360 capture
                 const camPos = new Vec3();
@@ -626,10 +695,36 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
                         // prepare the frame (loads PLY if needed, updates camera)
                         await prepareFrame(startFrame + frameTime * animFrameRate, true);
 
+                        if (exportCameras) {
+                            const position = scene.camera.position.clone();
+                            const rotation = (levelHorizon ?? true) ?
+                                new Quat().setFromEulerAngles(0, scene.camera.azim, 0) :
+                                scene.camera.mainCamera.getRotation().clone();
+                            renderCameras.push(serializeRenderCamera(
+                                scene,
+                                videoSettings,
+                                renderCameras.length,
+                                frameTime,
+                                startFrame + frameTime * animFrameRate,
+                                position,
+                                rotation
+                            ));
+                        }
+
                         await capture360(frameTime);
                     } else {
                         // prepare the frame (loads PLY if needed, updates camera, sorts)
                         await prepareFrame(startFrame + frameTime * animFrameRate);
+
+                        if (exportCameras) {
+                            renderCameras.push(serializeRenderCamera(
+                                scene,
+                                videoSettings,
+                                renderCameras.length,
+                                frameTime,
+                                startFrame + frameTime * animFrameRate
+                            ));
+                        }
 
                         // render a frame
                         scene.lockedRender = true;
@@ -683,6 +778,11 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
                 } else if (!cancelled && !fileStream) {
                     // Download (skip if cancelled -- the caller will delete the file)
                     downloadFile((target as BufferTarget).buffer, filename());
+                }
+
+                if (!cancelled && exportCameras) {
+                    const json = new TextEncoder().encode(`${JSON.stringify(renderCameras, null, 2)}\n`);
+                    downloadFile(json, 'cameras.json', 'application/json');
                 }
 
                 return !cancelled;
