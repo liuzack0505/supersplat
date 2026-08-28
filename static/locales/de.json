@@ -93,6 +93,7 @@
     "panel.view.bounding-box": "Objektbox",
     "panel.view.dimensions": "Abmessungen",
     "panel.view.camera-poses": "Kameras",
+    "panel.view.camera-pose-size": "Frustumgröße",
     "panel.view.camera-info": "Kamera-Info",
     "panel.view.center-size": "Punktgrößen",
     "panel.view.use-splat-colors": "Farbzentren",

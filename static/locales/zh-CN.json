@@ -93,6 +93,7 @@
     "panel.view.bounding-box": "边界框",
     "panel.view.dimensions": "尺寸",
     "panel.view.camera-poses": "相机位姿",
+    "panel.view.camera-pose-size": "视锥体大小",
     "panel.view.camera-info": "相机信息",
     "panel.view.center-size": "中心大小",
     "panel.view.use-splat-colors": "颜色中心",

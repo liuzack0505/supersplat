@@ -93,6 +93,7 @@
     "panel.view.bounding-box": "경계 상자",
     "panel.view.dimensions": "치수",
     "panel.view.camera-poses": "카메라 포즈",
+    "panel.view.camera-pose-size": "절두체 크기",
     "panel.view.camera-info": "카메라 정보",
     "panel.view.center-size": "센터 크기",
     "panel.view.use-splat-colors": "컬러 센터",

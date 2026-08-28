@@ -24,6 +24,7 @@ const sceneConfig = {
         bound: true,
         boundDimensions: false,
         cameraPoses: false,
+        cameraPoseSize: 1,
         cameraInfo: false,
         shBands: 3
     },

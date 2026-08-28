@@ -89,6 +89,7 @@ class CameraPoseGizmos extends Element {
         events.on('track.keysCleared', markDirty);
         events.on('track.keysLoaded', markDirty);
         events.on('scene.boundChanged', markDirty);
+        events.on('camera.poseSize', markDirty);
     }
 
     destroy() {
@@ -117,9 +118,10 @@ class CameraPoseGizmos extends Element {
             return;
         }
 
-        const depth = 0.08;
-        const halfW = 0.06;
-        const halfH = 0.04;
+        const size = this.scene.events.invoke('camera.poseSize') as number;
+        const depth = 0.08 * size;
+        const halfW = 0.06 * size;
+        const halfH = 0.04 * size;
 
         const numVerts = poses.length * VERTS_PER_CAMERA;
         const positions: number[] = [];

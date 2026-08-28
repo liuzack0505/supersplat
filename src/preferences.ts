@@ -95,6 +95,7 @@ const registerPreferences = (events: Events, config: SceneConfig, urlArgs: any) 
         { key: 'camera.bound', setCommand: 'camera.setBound', urlPath: 'show.bound', getDefault: () => config.show.bound, validate: isBool },
         { key: 'camera.boundDimensions', setCommand: 'camera.setBoundDimensions', urlPath: 'show.boundDimensions', getDefault: () => config.show.boundDimensions, validate: isBool },
         { key: 'camera.showPoses', setCommand: 'camera.setShowPoses', urlPath: 'show.cameraPoses', getDefault: () => config.show.cameraPoses, validate: isBool },
+        { key: 'camera.poseSize', setCommand: 'camera.setPoseSize', urlPath: 'show.cameraPoseSize', getDefault: () => config.show.cameraPoseSize, validate: isNumber(1, 30) },
         { key: 'camera.showInfo', setCommand: 'camera.setShowInfo', urlPath: 'show.cameraInfo', getDefault: () => config.show.cameraInfo, validate: isBool },
         { key: 'camera.mode', setCommand: 'camera.setMode', getDefault: () => 'centers', validate: isEnum(['centers', 'rings']) },
         { key: 'camera.overlay', setCommand: 'camera.setOverlay', urlPath: 'camera.overlay', getDefault: () => config.camera.overlay, validate: isBool },

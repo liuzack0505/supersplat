@@ -93,6 +93,7 @@
     "panel.view.bounding-box": "Limite",
     "panel.view.dimensions": "Dimensões",
     "panel.view.camera-poses": "Câmeras",
+    "panel.view.camera-pose-size": "Tamanho do frustum",
     "panel.view.camera-info": "Info da Câmera",
     "panel.view.center-size": "Tamanho dos Centros",
     "panel.view.use-splat-colors": "Centros de Cor",

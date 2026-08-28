@@ -93,6 +93,7 @@
     "panel.view.bounding-box": "バウンディングボックス",
     "panel.view.dimensions": "寸法",
     "panel.view.camera-poses": "カメラポーズ",
+    "panel.view.camera-pose-size": "視錐台のサイズ",
     "panel.view.camera-info": "カメラ情報",
     "panel.view.center-size": "センターサイズ",
     "panel.view.use-splat-colors": "カラーセンター",

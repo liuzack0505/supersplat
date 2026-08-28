@@ -66,7 +66,7 @@ const registerEditorEvents = (events: Events, editHistory: EditHistory, scene: S
 
     [
         'camera.mode', 'camera.overlay', 'camera.splatSize', 'view.outlineSelection',
-        'view.centersUseGaussianColor', 'view.bands', 'view.minPixelSize', 'view.stochastic', 'view.perfOverlay', 'camera.bound', 'camera.boundDimensions', 'camera.showPoses',
+        'view.centersUseGaussianColor', 'view.bands', 'view.minPixelSize', 'view.stochastic', 'view.perfOverlay', 'camera.bound', 'camera.boundDimensions', 'camera.showPoses', 'camera.poseSize',
         'camera.showInfo', 'selection.changed', 'tool.coordSpace', 'colorPanel.pendingChanged'
     ].forEach((eventName) => {
         events.on(eventName, () => {
@@ -243,6 +243,19 @@ const registerEditorEvents = (events: Events, editHistory: EditHistory, scene: S
 
     events.on('camera.toggleShowPoses', () => {
         setShowPoses(!events.invoke('camera.showPoses'));
+    });
+
+    // camera.poseSize
+
+    let poseSize = scene.config.show.cameraPoseSize;
+
+    events.function('camera.poseSize', () => poseSize);
+
+    events.on('camera.setPoseSize', (value: number) => {
+        if (value !== poseSize) {
+            poseSize = value;
+            events.fire('camera.poseSize', poseSize);
+        }
     });
 
     // camera.showInfo
@@ -937,6 +950,7 @@ const registerEditorEvents = (events: Events, editHistory: EditHistory, scene: S
             showBound: events.invoke('camera.bound'),
             showBoundDimensions: events.invoke('camera.boundDimensions'),
             showCameraPoses: events.invoke('camera.showPoses'),
+            cameraPoseSize: events.invoke('camera.poseSize'),
             showCameraInfo: events.invoke('camera.showInfo'),
             flySpeed: events.invoke('camera.flySpeed'),
             fovDolly: events.invoke('camera.fovDolly')
@@ -956,6 +970,7 @@ const registerEditorEvents = (events: Events, editHistory: EditHistory, scene: S
         events.fire('camera.setBound', docView.showBound);
         events.fire('camera.setBoundDimensions', docView.showBoundDimensions ?? false);
         events.fire('camera.setShowPoses', docView.showCameraPoses ?? false);
+        events.fire('camera.setPoseSize', docView.cameraPoseSize ?? 1);
         events.fire('camera.setShowInfo', docView.showCameraInfo ?? false);
         events.fire('camera.setFlySpeed', docView.flySpeed);
         events.fire('camera.setFovDolly', docView.fovDolly ?? false);

@@ -178,6 +178,28 @@ class ViewOptionsPanel extends Container {
         showCameraPosesRow.append(showCameraPosesLabel);
         showCameraPosesRow.append(showCameraPosesToggle);
 
+        // camera pose frustum size
+
+        const cameraPoseSizeRow = new Container({
+            class: ['settings-panel-row', 'options-panel-row-indent']
+        });
+
+        const cameraPoseSizeLabel = new Label({
+            class: 'settings-panel-row-label'
+        });
+        i18n.bindText(cameraPoseSizeLabel, 'panel.view.camera-pose-size');
+
+        const cameraPoseSizeSlider = new SliderInput({
+            class: 'settings-panel-row-slider',
+            min: 1,
+            max: 30,
+            precision: 2,
+            value: 1
+        });
+
+        cameraPoseSizeRow.append(cameraPoseSizeLabel);
+        cameraPoseSizeRow.append(cameraPoseSizeSlider);
+
         // show camera info
 
         const showCameraInfoRow = new Container({
@@ -296,6 +318,7 @@ class ViewOptionsPanel extends Container {
         this.append(showBoundRow);
         this.append(showBoundDimensionsRow);
         this.append(showCameraPosesRow);
+        this.append(cameraPoseSizeRow);
         this.append(showCameraInfoRow);
         this.append(sectionHeader('panel.view.section-overlay'));
         this.append(centersSizeRow);
@@ -323,6 +346,8 @@ class ViewOptionsPanel extends Container {
             showBoundDimensionsRow.enabled = bound;
             showBoundDimensionsToggle.value = events.invoke('camera.boundDimensions');
             showCameraPosesToggle.value = events.invoke('camera.showPoses');
+            cameraPoseSizeRow.enabled = showCameraPosesToggle.value;
+            cameraPoseSizeSlider.value = events.invoke('camera.poseSize');
             showCameraInfoToggle.value = events.invoke('camera.showInfo');
             centersSizeSlider.value = events.invoke('camera.splatSize');
             centersColorToggle.value = events.invoke('view.centersUseGaussianColor');
@@ -407,10 +432,19 @@ class ViewOptionsPanel extends Container {
 
         events.on('camera.showPoses', (visible: boolean) => {
             showCameraPosesToggle.value = visible;
+            cameraPoseSizeRow.enabled = visible;
         });
 
         showCameraPosesToggle.on('change', () => {
             events.fire('camera.setShowPoses', showCameraPosesToggle.value);
+        });
+
+        events.on('camera.poseSize', (value: number) => {
+            cameraPoseSizeSlider.value = value;
+        });
+
+        cameraPoseSizeSlider.on('change', (value: number) => {
+            events.fire('camera.setPoseSize', value);
         });
 
         // show camera info

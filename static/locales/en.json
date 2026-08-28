@@ -93,6 +93,7 @@
     "panel.view.bounding-box": "Bounding Box",
     "panel.view.dimensions": "Dimensions",
     "panel.view.camera-poses": "Camera Poses",
+    "panel.view.camera-pose-size": "Frustum Size",
     "panel.view.camera-info": "Camera Info",
     "panel.view.center-size": "Center Size",
     "panel.view.use-splat-colors": "Use Splat Colors",

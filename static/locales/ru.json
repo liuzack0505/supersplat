@@ -93,6 +93,7 @@
     "panel.view.bounding-box": "Границы",
     "panel.view.dimensions": "Размеры",
     "panel.view.camera-poses": "Позы камер",
+    "panel.view.camera-pose-size": "Размер фрустума",
     "panel.view.camera-info": "Информация о камере",
     "panel.view.center-size": "Размер центров",
     "panel.view.use-splat-colors": "Цветные центры",
