@@ -3,6 +3,7 @@ import { Button, Element, Container } from '@playcanvas/pcui';
 import { Events } from '../events';
 import { ShortcutManager } from '../shortcut-manager';
 import { i18n } from './localization';
+import { MenuPanel } from './menu-panel';
 import measureSvg from './svg/measure.svg';
 import orientSvg from './svg/orient.svg';
 import redoSvg from './svg/redo.svg';
@@ -121,6 +122,42 @@ class BottomToolbar extends Container {
             class: 'bottom-toolbar-tool'
         });
 
+        const novelView = new Button({
+            id: 'bottom-toolbar-novel-view',
+            class: 'bottom-toolbar-tool',
+            icon: 'E136'
+        });
+
+        const novelViewMenu = new MenuPanel([
+            {
+                text: () => i18n.t('novel-view.line'),
+                onSelect: () => {
+                    events.fire('novelView.setType', 'line');
+                    events.fire('tool.novelView');
+                }
+            },
+            {
+                text: () => i18n.t('novel-view.oval'),
+                onSelect: () => {
+                    events.fire('novelView.setType', 'oval');
+                    events.fire('tool.novelView');
+                }
+            },
+            {
+                text: () => i18n.t('novel-view.grid'),
+                onSelect: () => {
+                    events.fire('novelView.setType', 'grid');
+                    events.fire('tool.novelView');
+                }
+            },
+            {
+                text: () => i18n.t('novel-view.import-cameras'),
+                onSelect: () => {
+                    events.fire('novelView.importCameras');
+                }
+            }
+        ]);
+
         const coordSpace = new Button({
             id: 'bottom-toolbar-coord-space',
             class: 'bottom-toolbar-toggle',
@@ -167,8 +204,10 @@ class BottomToolbar extends Container {
         this.append(new Element({ class: 'bottom-toolbar-separator' }));
         this.append(measure);
         this.append(orient);
+        this.append(novelView);
         this.append(coordSpace);
         this.append(origin);
+        this.append(novelViewMenu);
 
         undo.dom.addEventListener('click', () => events.fire('edit.undo'));
         redo.dom.addEventListener('click', () => events.fire('edit.redo'));
@@ -185,6 +224,18 @@ class BottomToolbar extends Container {
         scale.dom.addEventListener('click', () => events.fire('tool.scale'));
         measure.dom.addEventListener('click', () => events.fire('tool.measure'));
         orient.dom.addEventListener('click', () => events.fire('tool.orient'));
+        novelView.dom.addEventListener('click', () => {
+            if (events.invoke('tool.active') === 'novelView') {
+                events.fire('tool.deactivate');
+            } else {
+                if (novelViewMenu.hidden) {
+                    novelViewMenu.hidden = false;
+                    novelViewMenu.position(novelView.dom, 'top', 8);
+                } else {
+                    novelViewMenu.hidden = true;
+                }
+            }
+        });
         coordSpace.dom.addEventListener('click', () => events.fire('tool.toggleCoordSpace'));
         origin.dom.addEventListener('click', (e: MouseEvent) => {
             if (events.invoke('tool.active') === 'orient') {
@@ -214,6 +265,7 @@ class BottomToolbar extends Container {
             scale.class[toolName === 'scale' ? 'add' : 'remove']('active');
             measure.class[toolName === 'measure' ? 'add' : 'remove']('active');
             orient.class[toolName === 'orient' ? 'add' : 'remove']('active');
+            novelView.class[toolName === 'novelView' ? 'add' : 'remove']('active');
             eyedropper.class[toolName === 'eyedropperSelection' ? 'add' : 'remove']('active');
         });
 
@@ -250,6 +302,7 @@ class BottomToolbar extends Container {
         tooltips.register(scale, tooltip('tooltip.bottom-toolbar.scale', 'tool.scaleShortcut'));
         tooltips.register(measure, tooltip('tooltip.bottom-toolbar.measure'));
         tooltips.register(orient, tooltip('tooltip.bottom-toolbar.orient'));
+        tooltips.register(novelView, tooltip('tooltip.bottom-toolbar.novel-view'));
         tooltips.register(coordSpace, tooltip('tooltip.bottom-toolbar.local-space', 'tool.toggleCoordSpace'));
         tooltips.register(origin, () => i18n.t(
             events.invoke('tool.active') === 'orient' ? 'orient.set-pivot' : 'tooltip.bottom-toolbar.reset-pivot'

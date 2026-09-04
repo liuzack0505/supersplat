@@ -90,6 +90,8 @@ class CameraPoseGizmos extends Element {
         events.on('track.keysLoaded', markDirty);
         events.on('scene.boundChanged', markDirty);
         events.on('camera.poseSize', markDirty);
+        events.on('novelView.active', markDirty);
+        events.on('novelView.changed', markDirty);
     }
 
     destroy() {
@@ -98,7 +100,9 @@ class CameraPoseGizmos extends Element {
 
     onPreRender() {
         const { scene } = this;
-        const visible = scene.events.invoke('camera.showPoses') && scene.camera.renderOverlays;
+        const novelViewActive = scene.events.functions.has('novelView.active') && !!scene.events.invoke('novelView.active');
+        const novelViewRendering = novelViewActive && !!scene.events.invoke('novelView.rendering');
+        const visible = !novelViewRendering && (novelViewActive || scene.events.invoke('camera.showPoses')) && scene.camera.renderOverlays;
 
         if (visible && this.dirty) {
             this.dirty = false;
@@ -112,7 +116,8 @@ class CameraPoseGizmos extends Element {
     }
 
     private rebuildMesh() {
-        const poses = this.scene.events.invoke('camera.poses') as { position: Vec3, target: Vec3 }[];
+        const novelViewActive = this.scene.events.functions.has('novelView.active') && !!this.scene.events.invoke('novelView.active');
+        const poses = this.scene.events.invoke(novelViewActive ? 'novelView.poses' : 'camera.poses') as { position: Vec3, target: Vec3, up?: Vec3 }[];
         if (!poses || poses.length === 0) {
             this.mesh.primitive[0].count = 0;
             return;
@@ -138,10 +143,14 @@ class CameraPoseGizmos extends Element {
             tmpForward.sub2(target, position).normalize();
 
             // right direction (handle degenerate case when looking straight up/down)
-            if (Math.abs(tmpForward.y) > 0.999) {
-                tmpRight.cross(tmpForward, Vec3.BACK).normalize();
+            if (pose.up) {
+                tmpRight.cross(tmpForward, pose.up).normalize();
             } else {
-                tmpRight.cross(tmpForward, Vec3.UP).normalize();
+                if (Math.abs(tmpForward.y) > 0.999) {
+                    tmpRight.cross(tmpForward, Vec3.BACK).normalize();
+                } else {
+                    tmpRight.cross(tmpForward, Vec3.UP).normalize();
+                }
             }
 
             // up direction
@@ -174,12 +183,12 @@ class CameraPoseGizmos extends Element {
             pushLine(tmpTR, tmpUpTip);
         }
 
-        // fill vertex colors with cyan (0, 255, 255, 255)
+        // timeline cameras are cyan; temporary novel-view cameras are orange
         for (let i = 0; i < numVerts; i++) {
             const off = i * 4;
-            colors[off] = 0;
-            colors[off + 1] = 255;
-            colors[off + 2] = 255;
+            colors[off] = novelViewActive ? 255 : 0;
+            colors[off + 1] = novelViewActive ? 128 : 255;
+            colors[off + 2] = novelViewActive ? 0 : 255;
             colors[off + 3] = 255;
         }
 

@@ -1,10 +1,11 @@
-import { WebPCodec } from '@playcanvas/splat-transform';
+import { MemoryFileSystem, WebPCodec, ZipFileSystem, type FileSystem as TransformFileSystem } from '@playcanvas/splat-transform';
 import { BufferTarget, EncodedPacket, EncodedVideoPacketSource, MkvOutputFormat, MovOutputFormat, Mp4OutputFormat, Output, StreamTarget, WebMOutputFormat } from 'mediabunny';
 import { Color, Mat4, path, Quat, Vec3 } from 'playcanvas';
 
 import { ElementType } from './element';
 import { EquirectRenderer } from './equirect-renderer';
 import { Events } from './events';
+import type { NovelViewPanelState, NovelViewPose } from './novel-view';
 import { encodePng } from './png-writer';
 import { Scene } from './scene';
 import { injectSphericalMetadata } from './spherical-metadata';
@@ -13,6 +14,9 @@ import { i18n } from './ui/localization';
 import { buildVideoEncoderConfig, getVideoCodecType, VideoSettings } from './video-config';
 
 const nullClr = new Color(0, 0, 0, 0);
+const novelViewPoseTransform = new Mat4();
+const novelViewPoseRotation = new Quat();
+const novelViewPoseForward = new Vec3();
 
 // Lookup maps for video output format and codec configuration
 const FORMAT_CONFIG: Record<string, { create: (streaming: boolean) => Mp4OutputFormat | MovOutputFormat | MkvOutputFormat | WebMOutputFormat; extension: string }> = {
@@ -34,6 +38,7 @@ type ImageSettings = {
     quality?: number;           // 0..1, jpeg only
     projection?: 'standard' | 'equirect';
     levelHorizon?: boolean;
+    convertCoordinates?: boolean;
 };
 
 const removeExtension = (filename: string) => {
@@ -395,6 +400,223 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
             scene.forceRender = true;       // repaint the viewport with normal rendering
 
             events.fire('stopSpinner');
+        }
+    });
+
+    events.function('render.novelViews', async (poses: NovelViewPose[], imageSettings: ImageSettings, panelState?: NovelViewPanelState | null) => {
+        if (poses.length === 0 || poses.length > 10000) {
+            return false;
+        }
+
+        let cancelled = false;
+        const cancelHandler = events.on('progressCancel', () => {
+            cancelled = true;
+        });
+        events.fire('progressStart', i18n.t('novel-view.rendering'), true);
+
+        const {
+            width, height, transparentBg, showDebug, format, quality, convertCoordinates
+        } = imageSettings;
+        const extension = format === 'jpeg' ? 'jpg' : format;
+        const originalPose = events.invoke('camera.getPose');
+        const cameras: any[] = [];
+        let outputFs: TransformFileSystem;
+        let zipFs: ZipFileSystem | null = null;
+        let zipMemory: MemoryFileSystem | null = null;
+        let offscreen = false;
+
+        try {
+            const showDirectoryPicker = (window as any).showDirectoryPicker;
+            if (showDirectoryPicker) {
+                const parent = await showDirectoryPicker({ id: 'SuperSplatNovelViewExport', mode: 'readwrite' });
+                const directory = await parent.getDirectoryHandle('novel-views', { create: true });
+                const firstEntry = await directory.values().next();
+                if (!firstEntry.done) {
+                    throw new Error(i18n.t('novel-view.output-not-empty'));
+                }
+                outputFs = {
+                    mkdir: async () => {},
+                    createWriter: (filename: string) => {
+                        let bytesWritten = 0;
+                        let stream: FileSystemWritableFileStream;
+                        const ready = directory.getFileHandle(filename, { create: true })
+                        .then((handle: FileSystemFileHandle) => handle.createWritable())
+                        .then((value: FileSystemWritableFileStream) => {
+                            stream = value;
+                        });
+                        return {
+                            get bytesWritten() {
+                                return bytesWritten;
+                            },
+                            async write(data: Uint8Array) {
+                                await ready;
+                                bytesWritten += data.byteLength;
+                                await stream.write(data as unknown as ArrayBuffer);
+                            },
+                            async close() {
+                                await ready;
+                                await stream.close();
+                            },
+                            async abort() {
+                                await ready;
+                                await stream.abort();
+                            }
+                        };
+                    }
+                };
+            } else {
+                zipMemory = new MemoryFileSystem();
+                const zipWriter = await zipMemory.createWriter('novel-views.zip');
+                zipFs = new ZipFileSystem(zipWriter);
+                outputFs = zipFs;
+            }
+
+            scene.camera.startOffscreenMode(width, height);
+            offscreen = true;
+            scene.camera.renderOverlays = showDebug;
+            scene.gizmoLayer.enabled = false;
+            scene.camera.clearPass.setClearColor(transparentBg ? nullClr : events.invoke('bgClr'));
+            scene.lockedRenderMode = true;
+
+            const data = new Uint8Array(width * height * 4);
+            // cancelled is changed asynchronously by the progress callback
+            // eslint-disable-next-line no-unmodified-loop-condition
+            for (let i = 0; i < poses.length && !cancelled; i++) {
+                const pose = poses[i];
+                if (pose.up) {
+                    novelViewPoseForward.sub2(pose.target, pose.position).normalize();
+                    scene.camera.fitClippingPlanes(pose.position, novelViewPoseForward);
+                    novelViewPoseTransform.setLookAt(pose.position, pose.target, pose.up);
+                    novelViewPoseRotation.setFromMat4(novelViewPoseTransform);
+                    scene.camera.setPoseOverride({
+                        position: pose.position,
+                        rotation: novelViewPoseRotation,
+                        fov: pose.fov,
+                        near: scene.camera.near,
+                        far: scene.camera.far
+                    });
+                } else {
+                    scene.camera.setPoseOverride(null);
+                    events.fire('camera.setPose', pose, 0);
+                    scene.camera.onUpdate(0);
+                }
+                scene.lockedRender = true;
+                await postRender();
+
+                const { mainTarget, workTarget } = scene.camera;
+                scene.dataProcessor.copyRt(mainTarget, workTarget);
+                await workTarget.colorBuffer.read(0, 0, width, height, { renderTarget: workTarget, data, immediate: true });
+
+                let bytes: Uint8Array<ArrayBuffer>;
+                if (format === 'png') {
+                    bytes = await encodePng(data, width, height);
+                } else if (format === 'jpeg') {
+                    for (let p = 3; p < data.length; p += 4) data[p] = 255;
+                    const canvas = new OffscreenCanvas(width, height);
+                    const context = canvas.getContext('2d');
+                    if (!context) throw new Error('failed to create 2d context');
+                    context.putImageData(new ImageData(new Uint8ClampedArray(data), width, height), 0, 0);
+                    const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: quality ?? 0.9 });
+                    bytes = new Uint8Array(await blob.arrayBuffer());
+                } else {
+                    if (!webpCodec) webpCodec = await WebPCodec.create();
+                    bytes = webpCodec.encodeLosslessRGBA(data, width, height);
+                }
+
+                const imgName = `${i.toString().padStart(5, '0')}.${extension}`;
+                const writer = await outputFs.createWriter(imgName);
+                await writer.write(bytes);
+                await writer.close();
+
+                const world = scene.camera.mainCamera.getWorldTransform().data;
+                const position = [world[12], world[13], world[14]];
+                const c2w = [
+                    [world[0], world[4], world[8]],
+                    [world[1], world[5], world[9]],
+                    [world[2], world[6], world[10]]
+                ];
+                const focal = 0.5 * (scene.camera.camera.horizontalFov ? width : height) /
+                    Math.tan(0.5 * pose.fov * Math.PI / 180);
+                const K = [[focal, 0, width * 0.5], [0, focal, height * 0.5], [0, 0, 1]];
+                const novelView = panelState ? {
+                    version: 1,
+                    settings: panelState
+                } : undefined;
+
+                if (convertCoordinates) {
+                    // R = diag(1,-1,-1) * transpose(camera-to-world rotation)
+                    const R = [
+                        [c2w[0][0], c2w[1][0], c2w[2][0]],
+                        [-c2w[0][1], -c2w[1][1], -c2w[2][1]],
+                        [-c2w[0][2], -c2w[1][2], -c2w[2][2]]
+                    ];
+                    const t = R.map(row => -(row[0] * position[0] + row[1] * position[1] + row[2] * position[2]));
+                    cameras.push({
+                        id: i,
+                        img_name: imgName,
+                        width,
+                        height,
+                        coordinate_system: 'opencv',
+                        novel_view: novelView,
+                        K,
+                        R,
+                        t
+                    });
+                } else {
+                    cameras.push({
+                        id: i,
+                        img_name: imgName,
+                        width,
+                        height,
+                        coordinate_system: 'playcanvas',
+                        novel_view: novelView,
+                        K,
+                        position,
+                        rotation: c2w
+                    });
+                }
+
+                events.fire('progressUpdate', {
+                    text: i18n.t('novel-view.rendering-view', { current: i + 1, total: poses.length }),
+                    progress: 100 * (i + 1) / poses.length
+                });
+            }
+
+            if (!cancelled) {
+                const jsonWriter = await outputFs.createWriter('cameras.json');
+                await jsonWriter.write(new TextEncoder().encode(`${JSON.stringify(cameras, null, 2)}\n`));
+                await jsonWriter.close();
+            }
+
+            if (zipFs) {
+                await zipFs.close();
+                if (!cancelled) {
+                    const zipData = zipMemory.results.get('novel-views.zip');
+                    if (!zipData) throw new Error('failed to create novel-view archive');
+                    downloadFile(new Uint8Array(zipData), `${baseFilename()}-novel-views.zip`, 'application/zip');
+                }
+            }
+            return !cancelled;
+        } catch (error) {
+            if (!(error instanceof DOMException && error.name === 'AbortError')) {
+                await events.invoke('showPopup', {
+                    type: 'error',
+                    header: i18n.t('panel.render.failed'),
+                    message: `'${(error as any).message ?? error}'`
+                });
+            }
+            return false;
+        } finally {
+            cancelHandler.off();
+            if (offscreen) scene.camera.endOffscreenMode();
+            scene.camera.setPoseOverride(null);
+            scene.camera.renderOverlays = true;
+            scene.gizmoLayer.enabled = true;
+            scene.camera.clearPass.setClearColor(nullClr);
+            scene.lockedRenderMode = false;
+            if (originalPose) events.fire('camera.setPose', originalPose, 0);
+            scene.forceRender = true;
+            events.fire('progressEnd');
         }
     });
 

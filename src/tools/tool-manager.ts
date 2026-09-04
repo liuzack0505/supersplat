@@ -5,6 +5,7 @@ import { Events } from '../events';
 interface Tool {
     activate: () => void;
     deactivate: () => void;
+    canDeactivate?: () => boolean;
     // optional: handle a transform-mode request (1/2/3 shortcuts) while this
     // tool is active. return true if consumed, otherwise the corresponding
     // transform tool is activated instead.
@@ -91,6 +92,9 @@ class ToolManager {
     }
 
     activate(toolName: string | null) {
+        if (this.active && this.tools.get(this.active)?.canDeactivate?.() === false) {
+            return;
+        }
         if (toolName === this.active) {
             // re-activating the currently active tool deactivates it
             if (toolName) {

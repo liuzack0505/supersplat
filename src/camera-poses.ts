@@ -29,11 +29,15 @@ class CameraAnimTrack implements AnimTrack {
 
         // Evaluate on timeline playback and scrub
         events.on('timeline.time', (time: number) => {
-            this.evaluate(time);
+            if (!events.functions.has('novelView.active') || !events.invoke('novelView.active')) {
+                this.evaluate(time);
+            }
         });
 
         events.on('timeline.frame', (frame: number) => {
-            this.evaluate(frame);
+            if (!events.functions.has('novelView.active') || !events.invoke('novelView.active')) {
+                this.evaluate(frame);
+            }
         });
 
         // Rebuild spline when timeline parameters change

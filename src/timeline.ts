@@ -127,6 +127,9 @@ const registerTimelineEvents = (events: Events) => {
     let playing = false;
 
     const setPlaying = (value: boolean) => {
+        if (value && events.functions.has('novelView.active') && events.invoke('novelView.active')) {
+            return;
+        }
         if (value !== playing) {
             playing = value;
             events.fire('timeline.playing', playing);

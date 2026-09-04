@@ -25,6 +25,7 @@ import { FloodSelection } from './tools/flood-selection';
 import { LassoSelection } from './tools/lasso-selection';
 import { MeasureTool } from './tools/measure-tool';
 import { MoveTool } from './tools/move-tool';
+import { NovelViewTool } from './tools/novel-view-tool';
 import { OrientTool } from './tools/orient-tool';
 import { PolygonSelection } from './tools/polygon-selection';
 import { RectSelection } from './tools/rect-selection';
@@ -252,6 +253,7 @@ const main = async () => {
     toolManager.register('scale', new ScaleTool(events, scene));
     toolManager.register('measure', new MeasureTool(events, scene, editorUI.canvasContainer));
     toolManager.register('orient', new OrientTool(events, scene, editorUI.toolsContainer.dom, editorUI.canvasContainer));
+    toolManager.register('novelView', new NovelViewTool(events, scene, editorUI.canvasContainer));
 
     const boundDimensionsOverlay = new BoundDimensionsOverlay(events, scene, editorUI.canvasContainer);
 

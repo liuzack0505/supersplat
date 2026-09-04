@@ -14,7 +14,7 @@ const createSvg = (svgString: string, args = {}) => {
 };
 
 class ImageSettingsDialog extends Container {
-    show: () => Promise<ImageSettings | null>;
+    show: (options?: { novelViews?: boolean }) => Promise<ImageSettings | null>;
     hide: () => void;
     destroy: () => void;
 
@@ -171,6 +171,15 @@ class ImageSettingsDialog extends Container {
         showDebugRow.append(showDebugLabel);
         showDebugRow.append(showDebugBoolean);
 
+        // coordinate conversion (novel-view batch export only)
+
+        const convertCoordinatesLabel = new Label({ class: 'label' });
+        i18n.bindText(convertCoordinatesLabel, 'novel-view.convert-coordinates');
+        const convertCoordinatesBoolean = new BooleanInput({ class: 'boolean', value: false });
+        const convertCoordinatesRow = new Container({ class: 'row', hidden: true });
+        convertCoordinatesRow.append(convertCoordinatesLabel);
+        convertCoordinatesRow.append(convertCoordinatesBoolean);
+
         // content
 
         const content = new Container({ id: 'content' });
@@ -182,6 +191,7 @@ class ImageSettingsDialog extends Container {
         content.append(transparentBgRow);
         content.append(showDebugRow);
         content.append(levelHorizonRow);
+        content.append(convertCoordinatesRow);
 
         // footer
 
@@ -296,8 +306,17 @@ class ImageSettingsDialog extends Container {
 
         // function implementations
 
-        this.show = () => {
+        this.show = (options = {}) => {
             targetSize = events.invoke('targetSize');
+
+            const novelViews = !!options.novelViews;
+            projectionRow.hidden = novelViews;
+            convertCoordinatesRow.hidden = !novelViews;
+            if (novelViews) {
+                projectionSelect.value = 'standard';
+                levelHorizonRow.hidden = true;
+                convertCoordinatesBoolean.value = false;
+            }
 
             reset();
 
@@ -323,7 +342,8 @@ class ImageSettingsDialog extends Container {
                         format,
                         quality: format === 'jpeg' ? qualitySlider.value / 100 : undefined,
                         projection: (is360 ? 'equirect' : 'standard') as 'standard' | 'equirect',
-                        levelHorizon: is360 && levelHorizonBoolean.value
+                        levelHorizon: is360 && levelHorizonBoolean.value,
+                        convertCoordinates: novelViews && convertCoordinatesBoolean.value
                     };
 
                     resolve(imageSettings);

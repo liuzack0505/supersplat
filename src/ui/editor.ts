@@ -284,6 +284,10 @@ class EditorUI {
             }
         });
 
+        events.function('show.novelViewImageSettings', () => {
+            return imageSettingsDialog.show({ novelViews: true });
+        });
+
         events.function('show.videoSettingsDialog', async () => {
             const videoSettings = await videoSettingsDialog.show();
 

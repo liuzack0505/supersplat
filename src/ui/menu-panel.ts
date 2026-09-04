@@ -37,6 +37,8 @@ const arrange = (element: HTMLElement, target: HTMLElement, direction: Direction
             style.top = `${rect.top - parentRect.top}px`;
             break;
         case 'top':
+            style.left = `${rect.left - parentRect.left}px`;
+            style.top = `${rect.top - parentRect.top - element.scrollHeight - padding}px`;
             break;
         case 'bottom':
             style.left = `${rect.left - parentRect.left}px`;
